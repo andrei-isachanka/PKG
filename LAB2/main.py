@@ -54,8 +54,8 @@ class ImageMetadataReader:
                 return None
 
             width, height = 0, 0
-            dpi_x, dpi_y = 72, 72  # Default DPI
-            color_depth = 24  # Default for JPEG
+            dpi_x, dpi_y = 72, 72  
+            color_depth = 24  
             compression = "JPEG (lossy)"
 
             # Парсинг JPEG маркеров
@@ -73,16 +73,14 @@ class ImageMetadataReader:
                         break
                     
                     length = struct.unpack('>H', data[i+2:i+4])[0]
-                    precision_bits = data[i+4]  # Точность (обычно 8 бит)
+                    precision_bits = data[i+4]  
                     height = struct.unpack('>H', data[i+5:i+7])[0]
                     width = struct.unpack('>H', data[i+7:i+9])[0]
-                    num_components = data[i+9]  # Nf (1=Gray, 3=RGB, 4=CMYK)
+                    num_components = data[i+9]  
                     
-                    # ✅ ИСПРАВЛЕНИЕ: Правильный расчет глубины цвета
                     color_depth = precision_bits * num_components
                     break
 
-                # APP0 маркер (JFIF) содержит DPI
                 if marker == b'\xe0':
                     if i + 14 > len(data):
                         i += 2
@@ -157,7 +155,7 @@ class ImageMetadataReader:
                             color_depth = bits_per_sample
                         elif color_type == 2:  # RGB
                             color_depth = bits_per_sample * 3
-                        elif color_type == 3:  # Indexed (палитра)
+                        elif color_type == 3:  
                             color_depth = bits_per_sample
                         elif color_type == 4:  # Grayscale + Alpha
                             color_depth = bits_per_sample * 2
@@ -210,8 +208,6 @@ class ImageMetadataReader:
                 sort_flag = (packed >> 3) & 1
                 gct_size = 2 ** ((packed & 0x07) + 1)
 
-                # ✅ ИСПРАВЛЕНИЕ: Правильная глубина цвета для GIF
-                # GIF использует индексированный формат, где color_depth - это бит на пиксель
                 color_depth = color_resolution
                 
                 num_colors = 2 ** color_resolution
@@ -257,11 +253,9 @@ class ImageMetadataReader:
 
                 dpi_x, dpi_y = 72, 72
                 
-                # Проверка размера заголовка перед доступом к DPI
                 f.seek(14)
                 header_size = struct.unpack('<I', f.read(4))[0]
                 
-                # BITMAPINFOHEADER (40 байт) содержит DPI информацию
                 if header_size >= 40:
                     f.seek(38)
                     pixels_per_meter_x = struct.unpack('<I', f.read(4))[0]
@@ -327,9 +321,9 @@ class ImageMetadataReader:
 
                     if tag == 0x0100:  # ImageWidth
                         width = struct.unpack(endian + 'I', value_offset)[0]
-                    elif tag == 0x0101:  # ImageLength (Height)
+                    elif tag == 0x0101:  # ImageLength 
                         height = struct.unpack(endian + 'I', value_offset)[0]
-                    elif tag == 0x0102:  # BitsPerSample
+                    elif tag == 0x0102:  
                         bits_per_sample = struct.unpack(endian + 'H', value_offset[:2])[0]
                     elif tag == 0x0103:  # Compression
                         comp_type = struct.unpack(endian + 'H', value_offset[:2])[0]
@@ -342,21 +336,20 @@ class ImageMetadataReader:
                             6: "TIFF (JPEG)",
                         }
                         compression = compression_types.get(comp_type, "TIFF (unknown)")
-                    elif tag == 0x0106:  # PhotometricInterpretation
+                    elif tag == 0x0106:  
                         photometric = struct.unpack(endian + 'H', value_offset[:2])[0]
-                    elif tag == 0x0115:  # SamplesPerPixel (количество компонентов)
+                    elif tag == 0x0115:  
                         num_components = struct.unpack(endian + 'H', value_offset[:2])[0]
 
-                # ✅ ИСПРАВЛЕНИЕ: Правильный расчет глубины цвета для TIFF
-                # Зависит от типа фотометрии
-                if photometric == 1:  # BlackIsZero (Grayscale)
+                
+                if photometric == 1:  
                     color_depth = bits_per_sample
-                elif photometric == 2:  # RGB
+                elif photometric == 2:
                     color_depth = bits_per_sample * 3
-                elif photometric == 5:  # CMYK
+                elif photometric == 5:  
                     color_depth = bits_per_sample * 4
                 else:
-                    # Для других случаев используем количество компонентов
+                    
                     color_depth = bits_per_sample * num_components
 
                 if width > 0 and height > 0:
@@ -460,7 +453,6 @@ class ImageScannerThread(QThread):
 
     def run(self):
         try:
-            # ✅ ИСПРАВЛЕНИЕ: Более эффективный поиск файлов для 100k файлов
             image_files = []
             supported_exts = ImageMetadataReader.SUPPORTED_FORMATS
 
@@ -494,7 +486,6 @@ class ImageScannerThread(QThread):
                         processed_count += 1
                         self.progress_updated.emit(int((processed_count / total_files) * 100))
                     except Exception as e:
-                        # ✅ ИСПРАВЛЕНИЕ: Добавлено логирование ошибок
                         file_path = futures[future]
                         logger.warning(f"Ошибка при обработке {file_path}: {str(e)}")
                         processed_count += 1
